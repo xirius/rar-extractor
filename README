@@ -1,5 +1,0 @@
-rar-extractor
-Version: 1.0
-=============
-
-This script extracts each rar, rename the biggest file using the folder's name and move it to another directory
