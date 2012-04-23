@@ -5,8 +5,8 @@
 # rename the biggest file using the folder'sname
 # and move it to another directory
 
-parentDir="/mnt/Data_I/_HD.Check/_test/Parent Folder"
-tempDir="/mnt/Data_I/_HD.Check/_test/temp"
+parentDir=${1}
+tempDir=${2}
 destDir="/mnt/Data_I/_HD.Check/_test"
 
 # ALWAYS check the exit status of 'cd', to avoid running commands
