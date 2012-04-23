@@ -1,0 +1,11 @@
+#!/bin/bash
+
+# In "Parent Folder" there are many folders each one contains rar files
+# This script extracts each rar (contains a big file and other small ones)
+# rename the biggest file using the folder'sname
+# and move it to another directory
+
+parentDir=${1}
+destDir=${2}
+tempDir=
+
