@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# In "Parent Folder" there are many folders each one contains rar files
+# This script extracts each rar (contains a big file and other small ones)
+# rename the biggest file using the folder'sname
+# and move it to another directory
+
+parentDir="/mnt/Data_I/_HD.Check/_test/Parent Folder"
+tempDir="/mnt/Data_I/_HD.Check/_test/temp"
+destDir="/mnt/Data_I/_HD.Check/_test"
+
+# ALWAYS check the exit status of 'cd', to avoid running commands
+# in the wrong directory
+cd "$parentDir" || exit
+
+# any glob ending in '/' will only expand to directories
+for dir in ./*/; do
+  # trim the '/' from the end of the dir
+  dir=${dir%/}
+
+  printf "==Folder: %s\n" "$dir"
+  # commands within (...) are run in a subshell. that means assignments
+  # and changes in the working dir will not persist afterwards. I'm using
+  # subshells, so I don't have to worry about finding my way back out
+  (
+    cd "$dir" || exit
+    unrar x *.rar "$tempDir"
+    (
+      cd "$tempDir" || exit
+
+      # this will safely get the size of the biggest filename, even if it
+      # has newlines or any other special character in it
+      {
+        read -rd ' ' size
+        IFS= read -rd '' big
+      } < <(stat --printf='%s %n\0' ./* | sort -znr)
+
+      # /msg greybot faq 100 for more info on string manipulations in bash
+      ext=${big##*.}
+      printf '==File: %s\n' "$destDir/$dir.$ext"
+
+      mv "$big" "$destDir/$dir.$ext"
+    )
+  )
+done
