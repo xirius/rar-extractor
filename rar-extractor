@@ -168,7 +168,7 @@ done
 
 # Done
 print $C_BLU "-----------------------------------------------------------------------------"
-{ [[ -e "$LFILE" ]] && print $C_MAG "- " $C_RED "$ECOUNT Error(s) occured, look at: $LFILE"; } \
+{ [[ -e "$LFILE" ]] && print $C_MAG "- " $C_RED "$ECOUNT Error(s) occured, check: $LFILE"; } \
     || print $C_BLU "- " $C_MAG "Done ;-)"
 print $C_BLU "-----------------------------------------------------------------------------"
 
