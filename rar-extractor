@@ -5,6 +5,10 @@
 # rename the biggest file using the folder'sname
 # and move it to another directory
 
+parentDir=$1
+destDir=$2
+tempDir="/tmp/mre-$RANDOM.$$"
+
 # Colors
 C_BLK="\x1b[30;01m" # black
 C_RED="\x1b[31;01m" # red
@@ -16,18 +20,37 @@ C_CYN="\x1b[36;01m" # cyan
 C_WHI="\x1b[37;01m" # white
 C_END="\x1b[0m"     # Cancel
 
+# Error message file
+EFILE=$(mktemp)
+ERR="efile"
+
 # print: [color string] | [string]
 function print {
-	echo -e " "$1$2$3$4$5$6$7$C_END
+    echo -e " "$1$2$3$4$5$C_END
+}
+
+function error {
+    print $C_RED " Error! $1$2$3$4$5"
 }
 
 # New line
 function newline {
-	echo -e ""
+    echo -e ""
+}
+
+function quit {
+    newline; rm -R $EFILE; exit;
 }
 
 function die {
-	newline; exit;
+    typeset ERROR=$(sed -r -e 's|^.*line [0-9:\ ]+||' < "$EFILE")
+    [ $# -eq 0 ] && error "$ERROR"
+
+    for arg in "$@"; do
+        ([[ "$arg" == "$ERR" ]] && error "$ERROR") || error "$arg"
+    done
+
+    quit;
 }
 
 # Show greetings
@@ -35,47 +58,70 @@ newline
 print $C_BLU "-----------------------------------------------------------------------------"
 print $C_BLU "- " $C_MAG "Rar Extractor. Version 1.0"
 print $C_BLU "-----------------------------------------------------------------------------"
-newline
+
+parentDir=${parentDir%/}
+destDir=${destDir%/}
+
+# Check parameters
+[[ $# != 2 ]] && print $C_WHI "Usage: rar-extractor /parent/dir /dest/dir" && quit
 
 # Check if parent directory exists
-if [ ! -d "$parentDir" ]; then
-	print $C_RED "Error! Directory doesn't exist: $parentDir"; die
-fi
+[ -d "$parentDir" ] || die "Parent directory doesn't exist: $parentDir"
 
+# Change current directory
+cd "$parentDir" 2> "$EFILE" || die
 
-# ALWAYS check the exit status of 'cd', to avoid running commands
-# in the wrong directory
-cd "$parentDir" || exit
+# Create destination directory
+[ -d "$destDir" ] || mkdir "$destDir" 2> "$EFILE" || die "Destination directory: $destDir" $ERR
 
-# any glob ending in '/' will only expand to directories
+# Create temporary directory
+[ -d "$tempDir" ] || mkdir "$tempDir" 2> "$EFILE" || die "Temporary directory: $tempDir" $ERR
+
+# Show parent directory
+print $C_BLU " Parent dir: $parentDir"
+newline
+
+# Any glob ending in '/' will only expand to directories
 for dir in ./*/; do
-  # trim the '/' from the end of the dir
-  dir=${dir%/}
+    # trim the '/' from the end of the dir
+    dir=${dir%/}
+    print $C_YEL " + Folder: $(basename "$dir") ..."
 
-  printf "==Folder: %s\n" "$dir"
-  # commands within (...) are run in a subshell. that means assignments
-  # and changes in the working dir will not persist afterwards. I'm using
-  # subshells, so I don't have to worry about finding my way back out
-  (
-    cd "$dir" || exit
-    unrar x *.rar "$tempDir"
+    # commands within (...) are run in a subshell. that means assignments
+    # and changes in the working dir will not persist afterwards. I'm using
+    # subshells, so I don't have to worry about finding my way back out
     (
-      cd "$tempDir" || exit
+        # Change current directory
+        cd "$dir" 2> "$EFILE" || die
 
-      # this will safely get the size of the biggest filename, even if it
-      # has newlines or any other special character in it
-      {
-        read -rd ' ' size
-        IFS= read -rd '' big
-      } < <(stat --printf='%s %n\0' ./* | sort -znr)
+        # Unrar
+        unrar -o+ x *.rar "$tempDir" > /dev/null 2> "$EFILE" || die "In folder: $parentDir/$(basename "$dir")" $ERR
+        (
+            cd "$tempDir" 2> "$EFILE" || die
 
-      # /msg greybot faq 100 for more info on string manipulations in bash
-      ext=${big##*.}
-      printf '==File: %s\n' "$destDir/$dir.$ext"
+            # this will safely get the size of the biggest filename, even if it
+            # has newlines or any other special character in it
+            {
+                read -rd ' ' size
+                IFS= read -rd '' big
+            } < <(stat --printf='%s %n\0' ./* | sort -znr)
 
-      mv "$big" "$destDir/$dir.$ext"
+            # /msg greybot faq 100 for more info on string manipulations in bash
+            ext=${big##*.}
+            print $C_GRN " ++ File: $destDir/$(basename "$dir").$ext"
+
+            mv "$big" "$destDir/$dir.$ext" 2> "$EFILE" || die
+        )
+
+        newline
     )
-  )
 done
 
-rm -f $tempDir
+# Done
+print $C_BLU "-----------------------------------------------------------------------------"
+print $C_BLU "- " $C_MAG "Done ;-)"
+print $C_BLU "-----------------------------------------------------------------------------"
+
+# Exit program
+rm -R $tempDir
+quit
