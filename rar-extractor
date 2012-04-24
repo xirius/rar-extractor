@@ -7,7 +7,8 @@
 
 parentDir=${1%/}
 destDir=${2%/}
-tempDir="/tmp/mre-$RANDOM.$$"
+#tempDir="/tmp/mre-$RANDOM.$$"
+tempDir="/home/alex/Downloads/temp-000"
 
 # Colors
 C_BLK="\x1b[30;01m" # black
@@ -26,6 +27,7 @@ C_END="\x1b[0m"     # Cancel
 # Error message file
 EFILE=$(mktemp)
 LFILE="$destDir/error.log"
+ECOUNT=0
 
 # Constants
 ERR="errfile"
@@ -58,15 +60,22 @@ function newline {
 }
 
 function quit {
-    newline; rm -R $EFILE; exit;
+    newline; rm -R $EFILE;
+    { [[ "$1" == "$LOG" ]] && exit 255; } || exit;
 }
 
 function die {
     typeset log ERROR=$(sed -r -e 's|^.*line [0-9:\ ]+||' < "$EFILE")
 
     for arg in "$@"; do
-        [[ "$arg" == "$LOG" ]] && log=$LOG
+        [[ "$arg" == "$LOG" ]] && log=$LOG;
     done
+
+    [[ "$log" == "$LOG" ]] && {
+        log "#########################################################################################"
+        (( ++ECOUNT)) && log "### Error #$ECOUNT"
+        log "-----------------------------------------------------------------------------------------"
+    }
 
     [[ $# == 0 || $# == 1 && "$log" == "$LOG" ]] && error $log "$ERROR"
 
@@ -74,9 +83,11 @@ function die {
         [[ "$arg" != "$LOG" ]] && ( ([[ "$arg" == "$ERR" ]] && error $log "$ERROR") || error $log "$arg")
     done
 
-    [[ "$log" == "$LOG" ]] && log ""
+    [[ "$log" == "$LOG" ]] && {
+        log "-----------------------------------------------------------------------------------------\n"
+    }
 
-    quit;
+    quit $log;
 }
 
 # Show greetings
@@ -145,11 +156,20 @@ for dir in ./*/; do
 
         newline
     )
+
+    [[ $? == 255 ]] && (( ECOUNT++ ));
 done
+
+# Error count
+[ -e  "$LFILE" ] && {
+    log "#########################################################################################"
+    log "### Total reported errors:  $ECOUNT"
+    log "#########################################################################################"
+};
 
 # Done
 print $C_BLU "-----------------------------------------------------------------------------"
-{ [[ -e "$LFILE" ]] && print $C_MAG "- " $C_RED "For overview of errors, look: $LFILE"; } \
+{ [[ -e "$LFILE" ]] && print $C_MAG "- " $C_RED "$ECOUNT Error(s) occured, look at: $LFILE"; } \
     || print $C_BLU "- " $C_MAG "Done ;-)"
 print $C_BLU "-----------------------------------------------------------------------------"
 
