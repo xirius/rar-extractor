@@ -7,8 +7,7 @@
 
 parentDir=${1%/}
 destDir=${2%/}
-#tempDir="/tmp/mre-$RANDOM.$$"
-tempDir="/home/alex/Downloads/temp-000"
+tempDir="/tmp/mre-$RANDOM.$$"
 
 # Colors
 C_BLK="\x1b[30;01m" # black
