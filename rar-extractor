@@ -5,6 +5,8 @@
 # rename the biggest file using the folder'sname
 # and move it to another directory
 
+# New comment
+
 parentDir=$1
 destDir=$2
 tempDir="/tmp/mre-$RANDOM.$$"
