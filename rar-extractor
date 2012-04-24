@@ -85,8 +85,8 @@ print $C_BLU "------------------------------------------------------------------
 print $C_BLU "- " $C_MAG "Rar Extractor. Version 1.0"
 print $C_BLU "-----------------------------------------------------------------------------"
 
-# Check parameters
-[[ $# < 1 ]] && {
+# Usage cases
+[[ $# < 1 || $# > 2 ]] && {
     print $C_WHI "Usage:";
     print $C_WHI " rar-extractor /parent/dir";
     print $C_WHI " rar-extractor /parent/dir /dest/dir";
