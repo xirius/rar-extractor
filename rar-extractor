@@ -5,8 +5,8 @@
 # rename the biggest file using the folder'sname
 # and move it to another directory
 
-parentDir=$1
-destDir=$2
+parentDir=${1%/}
+destDir=${2%/}
 tempDir="/tmp/mre-$RANDOM.$$"
 
 # Colors
@@ -20,17 +20,36 @@ C_CYN="\x1b[36;01m" # cyan
 C_WHI="\x1b[37;01m" # white
 C_END="\x1b[0m"     # Cancel
 
+# Cas where destDir == parentDir
+[[ $# == 1 ]] && destDir="$parentDir"
+
 # Error message file
 EFILE=$(mktemp)
-ERR="efile"
+LFILE="$destDir/error.log"
+
+# Constants
+ERR="errfile"
+LOG="errlog"
 
 # print: [color string] | [string]
 function print {
     echo -e " "$1$2$3$4$5$C_END
 }
 
+function log {
+    echo -e "$1$2$3$4$5" >> "$LFILE"
+}
+
 function error {
-    print $C_RED " Error! $1$2$3$4$5"
+    typeset MSG log
+
+    for arg in "$@"; do
+        { [[ "$arg" != "$LOG" ]] && MSG="${MSG}$arg "; } || log="$LOG"
+    done
+
+    [[ "$log" == "$LOG" ]] && log "$(echo "$MSG" | tr "\n" " " | \
+        sed -r -e 's/[ ]+[-][ ]+CRC/ - CRC/' -e 's/[ ]+(\<[^ ]+[ ][-][ ]+CRC.*\>)/ <<=== [ \1 ]/ ')"
+    print $C_RED " Error! $MSG"
 }
 
 # New line
@@ -43,12 +62,19 @@ function quit {
 }
 
 function die {
-    typeset ERROR=$(sed -r -e 's|^.*line [0-9:\ ]+||' < "$EFILE")
-    [ $# -eq 0 ] && error "$ERROR"
+    typeset log ERROR=$(sed -r -e 's|^.*line [0-9:\ ]+||' < "$EFILE")
 
     for arg in "$@"; do
-        ([[ "$arg" == "$ERR" ]] && error "$ERROR") || error "$arg"
+        [[ "$arg" == "$LOG" ]] && log=$LOG
     done
+
+    [[ $# == 0 || $# == 1 && "$log" == "$LOG" ]] && error $log "$ERROR"
+
+    for arg in "$@"; do
+        [[ "$arg" != "$LOG" ]] && ( ([[ "$arg" == "$ERR" ]] && error $log "$ERROR") || error $log "$arg")
+    done
+
+    [[ "$log" == "$LOG" ]] && log ""
 
     quit;
 }
@@ -59,11 +85,12 @@ print $C_BLU "------------------------------------------------------------------
 print $C_BLU "- " $C_MAG "Rar Extractor. Version 1.0"
 print $C_BLU "-----------------------------------------------------------------------------"
 
-parentDir=${parentDir%/}
-destDir=${destDir%/}
-
 # Check parameters
-[[ $# != 2 ]] && print $C_WHI "Usage: rar-extractor /parent/dir /dest/dir" && quit
+[[ $# < 1 ]] && {
+    print $C_WHI "Usage:";
+    print $C_WHI " rar-extractor /parent/dir";
+    print $C_WHI " rar-extractor /parent/dir /dest/dir";
+} && quit
 
 # Check if parent directory exists
 [ -d "$parentDir" ] || die "Parent directory doesn't exist: $parentDir"
@@ -76,6 +103,9 @@ cd "$parentDir" 2> "$EFILE" || die
 
 # Create temporary directory
 [ -d "$tempDir" ] || mkdir "$tempDir" 2> "$EFILE" || die "Temporary directory: $tempDir" $ERR
+
+# Remove log file if exists
+[ -e  "$LFILE" ] && { rm "$LFILE" 2> "$EFILE" || die "Cannot remove: $EFILE"; }
 
 # Show parent directory
 print $C_BLU " Parent dir: $parentDir"
@@ -95,7 +125,7 @@ for dir in ./*/; do
         cd "$dir" 2> "$EFILE" || die
 
         # Unrar
-        unrar -o+ x *.rar "$tempDir" > /dev/null 2> "$EFILE" || die "In folder: $parentDir/$(basename "$dir")" $ERR
+        unrar -o+ x *.rar "$tempDir" > /dev/null 2> "$EFILE" || die $LOG "In folder: $parentDir/$(basename "$dir")" $ERR
         (
             cd "$tempDir" 2> "$EFILE" || die
 
@@ -119,7 +149,8 @@ done
 
 # Done
 print $C_BLU "-----------------------------------------------------------------------------"
-print $C_BLU "- " $C_MAG "Done ;-)"
+{ [[ -e "$LFILE" ]] && print $C_MAG "- " $C_RED "For overview of errors, look: $LFILE"; } \
+    || print $C_BLU "- " $C_MAG "Done ;-)"
 print $C_BLU "-----------------------------------------------------------------------------"
 
 # Exit program
